@@ -1,0 +1,13 @@
+{
+    "locators": [
+        {
+            "id": "login_btn",
+            "primary": "#login-button",
+            "fallbacks": [
+                "//button[text()='Login']",
+                ".auth-login"
+            ],
+            "score": 1.0
+        }
+    ]
+}
