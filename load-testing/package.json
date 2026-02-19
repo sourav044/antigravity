@@ -1,0 +1,38 @@
+{
+  "name": "load-testing",
+  "version": "1.0.0",
+  "description": "This project is a scalable load testing framework using .NET 8, Playwright, and Reqnroll (SpecFlow).",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "generate": "node dist/index.js --generate",
+    "test": "cucumber-js src/features/*.feature --require dist/steps/*.js --require dist/core/*.js --format summary",
+    "test:headed": "set HEADLESS_TEST=false && npm test",
+    "test:debug": "set PWDEBUG=1 && npm test",
+    "test:report": "cucumber-js src/features/*.feature --require dist/steps/*.js --require dist/core/*.js --format html:cucumber-report.html",
+    "lint": "eslint ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cucumber/cucumber": "^10.0.0",
+    "@playwright/test": "^1.41.0",
+    "commander": "^13.1.0",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "fs-extra": "^11.2.0",
+    "openai": "^4.20.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/cucumber": "^7.0.0",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.10.0"
+  }
+}

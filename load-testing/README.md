@@ -49,8 +49,16 @@ docker run --rm \
   myloadtest:runner
 ```
 
-## AI Agent Integration
-(Coming Soon) - Use Semantic Kernel to generate `.feature` files from Playwright traces.
+## AI Agent Integration (Implemented)
+The framework now uses a **Planner → Generator → Healer** architecture:
+1.  **Planner**: Generates high-level Markdown test plans from requirements.
+2.  **Generator**: Creates `.feature`, `Steps.cs`, `locators.json`, and `testdata.json`.
+3.  **Healer**: Patches broken locators in `locators.json` without altering test intent.
+
+Run the agent flow via:
+```bash
+dotnet run --project src/LoadRunner -- --generate "Verify user login"
+```
 
 ## Configuration
 - `.env`: Environment variables

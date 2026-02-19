@@ -8,6 +8,24 @@
                 ".auth-login"
             ],
             "score": 1.0
+        },
+        {
+            "id": "username_input",
+            "primary": "#user-name",
+            "fallbacks": [
+                "//input[@name='user-name']"
+            ],
+            "value": "standard_user",
+            "score": 1.0
+        },
+        {
+            "id": "password_input",
+            "primary": "#password",
+            "fallbacks": [
+                "//input[@name='password']"
+            ],
+            "value": "secret_sauce",
+            "score": 1.0
         }
     ]
 }
