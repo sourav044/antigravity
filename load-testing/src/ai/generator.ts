@@ -2,99 +2,123 @@ import { BaseAgent } from './base-agent';
 
 export class GeneratorAgent extends BaseAgent {
 
-    async generateFeature(testPlan: string): Promise<string> {
-        const systemPrompt = "You are a Playwright Test Generator. Generate a Gherkin feature file based on the test plan.";
-        const response = await this.prompt(systemPrompt, testPlan);
+    async generatePlaywrightSpec(featureName: string, events: any[]): Promise<string> {
+        let testBody = "";
+        const config = (await import('../core/config')).Config;
+        const { LocatorMap } = await import('../core/locator-map');
 
-        if (response.startsWith("Mock response")) {
-            return `Feature: Generated Feature from Plan
-    Scenario: Valid Login
-        Given I am on the login page
-        When I login with valid credentials
-        Then I should see the dashboard`;
+        // Ensure map is loaded
+        await LocatorMap.load(config.DataIdValuePath);
+
+        let stepCount = 1;
+
+        if (events.length > 0 && events[0].type !== 'navigation' && events[0].type !== 'url-change') {
+            testBody += `
+    await test.step('Initial Navigation', async () => {
+        await page.goto('${config.UrlPath}');
+    });`;
         }
-        return response;
-    }
-
-    async generateFeatureFromEvents(featureName: string, events: any[]): Promise<string> {
-        // Rule-Based Generation (No AI)
-        let scenarios = "";
 
         for (const e of events) {
             if (e.type === 'navigation') {
-                scenarios += `    Given I navigate to "${e.url}"\n`;
+                testBody += `
+    await test.step('Navigate to ${e.url}', async () => {
+        await page.goto('${e.url}');
+    });`;
+            } else if (e.type === 'url-change') {
+                testBody += `
+    await test.step('URL changed to ${e.url}', async () => {
+        await expect(page).toHaveURL('${e.url}');
+    });`;
+            } else if (e.type === 'manual') {
+                // Parse curly brace selectors and convert to playwright locators where possible
+                // e.g. {#id} -> #id, {.class} -> .class, {div > span} -> div > span
+                let selector = e.selector || '';
+                const match = selector.match(/^\{(.+)\}$/);
+                if (match) {
+                    selector = match[1];
+                }
+
+                testBody += `
+    await test.step('Manual Step: ${e.value}', async () => {
+        // Manual Action: ${e.value} on ${selector}
+        const locator = page.locator('${selector}');
+        await expect(locator).toBeVisible({ timeout: 15000 });
+        await locator.click(); // Defaulting manual step to click. User should edit this block.
+    });`;
+            } else if (e.type === 'click' || e.type === 'input' || e.type === 'drag-select') {
+                // Generate a semantic key
+                const cleanFeature = featureName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                const key = `${cleanFeature}_${e.type}_${stepCount++}`;
+
+                // Register to LocatorMap
+                LocatorMap.register(key, e.selector, e.value);
+
+                if (e.type === 'click') {
+                    testBody += `
+    await test.step('Click ${key}', async () => {
+        // Strategy used: ${e.selectorType || 'CSS'}
+        const selector = LocatorMap.getPlaywrightSelector('${key}', '${e.selector}');
+        await expect(page.locator(selector).first()).toBeVisible({ timeout: 15000 });
+        await page.locator(selector).first().click();
+    });`;
+                } else if (e.type === 'input') {
+                    testBody += `
+    await test.step('Type into ${key}', async () => {
+        // Strategy used: ${e.selectorType || 'CSS'}
+        const selector = LocatorMap.getPlaywrightSelector('${key}', '${e.selector}');
+        const expectedValue = LocatorMap.getExpectedValue('${key}', '${e.value}');
+        const locator = page.locator(selector).first();
+        await expect(locator).toBeVisible({ timeout: 15000 });
+        try {
+            await locator.fill(expectedValue);
+            await expect(locator).toHaveValue(expectedValue, { timeout: 5000 });
+        } catch (error) {
+            // Fallback for custom web components that aren't native inputs
+            await locator.click();
+            await locator.pressSequentially(expectedValue);
+        }
+    });`;
+                } else if (e.type === 'drag-select') {
+                    // Logic to simulate text selection 
+                    testBody += `
+    await test.step('Drag Select text inside ${key}', async () => {
+        // Strategy used: ${e.selectorType || 'CSS'}
+        const selector = LocatorMap.getPlaywrightSelector('${key}', '${e.selector}');
+        const locator = page.locator(selector).first();
+        await expect(locator).toBeVisible({ timeout: 15000 });
+        
+        // Simulating double-click to select text, or evaluate selection
+        await locator.dblclick(); 
+        
+        // Log selected text for verification
+        console.log(\`Selected text: "${e.value}" inside \$\{selector\}\`);
+    });`;
+                }
             }
-            if (e.type === 'click') {
-                // Ensure selector is safe for Gherkin
-                scenarios += `    When I click "${e.selector}"\n`;
-            }
-            if (e.type === 'input') {
-                scenarios += `    When I type "${e.value}" into "${e.selector}"\n`;
-            }
         }
 
-        if (!scenarios) {
-            scenarios = `    Given I navigate to the home page\n`;
+        // Save updated map
+        await LocatorMap.save(config.DataIdValuePath);
+
+        if (!testBody) {
+            testBody += `
+    await test.step('Navigate to initial URL', async () => {
+        await page.goto('${config.UrlPath}');
+    });`;
         }
 
-        return `Feature: ${featureName}
+        return `import { test, expect } from '@playwright/test';
+import { LocatorMap } from '../core/locator-map';
 
-  Scenario: ${featureName} Flow
-${scenarios}    Then the action should complete`;
-    }
-
-    async generateSteps(featureContent: string): Promise<string> {
-        // Rule-Based Step Generation (No AI)
-        // We parse the known Gherkin patterns we just generated
-
-        let steps = `import { Given, When, Then } from '@cucumber/cucumber';
-import { expect } from '@playwright/test';
-import { page } from './hooks';
-
-`;
-        const generatedPatterns = new Set<string>();
-
-        // 1. Navigation Step
-        if (!generatedPatterns.has('nav')) {
-            steps += `
-Given('I navigate to {string}', async function (url: string) {
-    await page.goto(url);
+// Load locators (ensure this runs before tests, or use a fixture)
+// For simplicity in this generated file, we'll assume global load or load in beforeAll
+test.beforeAll(async () => {
+    await LocatorMap.load('${config.DataIdValuePath.replace(/\\/g, '/')}');
 });
-`;
-            generatedPatterns.add('nav');
-        }
 
-        // 2. Click Step
-        if (!generatedPatterns.has('click')) {
-            steps += `
-When('I click {string}', async function (selector: string) {
-    const locator = page.locator(selector);
-    await expect(locator).toBeVisible();
-    await locator.click();
-});
-`;
-            generatedPatterns.add('click');
-        }
-
-        // 3. Input Step
-        if (!generatedPatterns.has('input')) {
-            steps += `
-When('I type {string} into {string}', async function (value: string, selector: string) {
-    const locator = page.locator(selector);
-    await expect(locator).toBeVisible();
-    await locator.fill(value);
-});
-`;
-            generatedPatterns.add('input');
-        }
-
-        // 4. Default Validation
-        steps += `
-Then('the action should complete', async function () {
-    // Placeholder for validation
-    // await expect(page).toHaveTitle(/Sequence/); 
-});
-`;
-        return steps;
+test('${featureName}', async ({ page }) => {
+${testBody}
+});`;
     }
 }

@@ -1,31 +1,34 @@
 {
-    "locators": [
-        {
-            "id": "login_btn",
-            "primary": "#login-button",
-            "fallbacks": [
-                "//button[text()='Login']",
-                ".auth-login"
-            ],
-            "score": 1.0
-        },
-        {
-            "id": "username_input",
-            "primary": "#user-name",
-            "fallbacks": [
-                "//input[@name='user-name']"
-            ],
-            "value": "standard_user",
-            "score": 1.0
-        },
-        {
-            "id": "password_input",
-            "primary": "#password",
-            "fallbacks": [
-                "//input[@name='password']"
-            ],
-            "value": "secret_sauce",
-            "score": 1.0
-        }
+  "locators": {
+    "primary": "#login-button",
+    "value": "",
+    "fallbacks": [
+      "//button[text()='Login']",
+      ".auth-login"
     ]
+  },
+  "newfeature_click_1": {
+    "primary": "[data-testid=\"sf-text-open-translator-button\"]"
+  },
+  "newfeature_click_2": {
+    "primary": "div#textareasContainer > div > section > div > div > d-textarea > div"
+  },
+  "newfeature_click_3": {
+    "primary": "[data-testid=\"cookie-banner-strict-accept-all\"]"
+  },
+  "newfeature_input_4": {
+    "primary": "[data-testid=\"translator-source-input\"]",
+    "value": "I am "
+  },
+  "newfeature_drag-select_5": {
+    "primary": "section > div > d-textarea > div > p",
+    "value": "Ich bin"
+  },
+  "newfeature_click_6": {
+    "primary": "#textareasContainer"
+  },
+  "newfeature_input_7": {
+    "primary": "[data-testid=\"translator-target-input\"]",
+    "value": "Ich bin "
+  }
 }

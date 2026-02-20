@@ -60,4 +60,47 @@ export class LocatorMap {
     static get(id: string): LocatorDef | undefined {
         return this.locators.get(id);
     }
+
+    static getPlaywrightSelector(id: string, defaultSelector: string): string {
+        const def = this.locators.get(id);
+        if (!def) return defaultSelector;
+
+        if (def.fallbacks && def.fallbacks.length > 0) {
+            // Join primary and fallbacks with a comma to create a Playwright union selector
+            return [def.primary, ...def.fallbacks].join(', ');
+        }
+        return def.primary;
+    }
+
+    static getExpectedValue(id: string, defaultValue: string): string {
+        const def = this.locators.get(id);
+        if (!def) return defaultValue;
+        return def.value !== undefined ? def.value : defaultValue;
+    }
+
+    static register(id: string, selector: string, value?: string) {
+        this.locators.set(id, {
+            id: id,
+            primary: selector,
+            value: value
+        });
+    }
+
+    static async save(filePath: string): Promise<void> {
+        try {
+            const data: Record<string, any> = {};
+            for (const [key, value] of this.locators.entries()) {
+                data[key] = {
+                    primary: value.primary,
+                    // Preserve other fields if they exist
+                    value: value.value,
+                    fallbacks: value.fallbacks
+                };
+            }
+            await fs.writeJson(filePath, data, { spaces: 2 });
+            console.log(`Saved ${this.locators.size} definitions to ${filePath}`);
+        } catch (error) {
+            console.error('Failed to save locator map:', error);
+        }
+    }
 }

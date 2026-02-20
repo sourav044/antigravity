@@ -46,25 +46,42 @@ export class AgentOrchestrator {
 
         console.log(`Generating files from recording for ${featureName}...`);
 
-        // Generate Feature
-        // Generate Feature
+        // Generate Playwright Spec
         const sanitizedName = featureName.replace(/[^a-zA-Z0-9_\-]/g, '').replace(/\s+/g, '_').toLowerCase();
-        const feature = await this.generator.generateFeatureFromEvents(featureName, events);
-        const featurePath = path.join(process.cwd(), 'src', 'features', `${sanitizedName}.feature`);
-        await fs.ensureDir(path.dirname(featurePath));
-        await fs.writeFile(featurePath, feature);
+        const specContent = await this.generator.generatePlaywrightSpec(featureName, events);
 
-        // Generate Steps
-        const steps = await this.generator.generateSteps(feature);
-        const stepsPath = path.join(process.cwd(), 'src', 'steps', `${sanitizedName}.steps.ts`);
-        await fs.ensureDir(path.dirname(stepsPath));
-        await fs.writeFile(stepsPath, steps);
+        const specPath = path.join(process.cwd(), 'src', 'tests', `${sanitizedName}.spec.ts`);
+        await fs.ensureDir(path.dirname(specPath));
+        await fs.writeFile(specPath, specContent);
 
         console.log(`\n✅ GENERATION COMPLETE`);
         console.log(`---------------------------------------------------`);
-        console.log(`📄 Feature File:  ${featurePath}`);
-        console.log(`👣 Step Defs:     ${stepsPath}`);
+        console.log(`📄 Spec File:     ${specPath}`);
         console.log(`---------------------------------------------------\n`);
+
+        console.log(`🚀 Automatically running the generated test in Playwright to verify...`);
+
+        // To achieve a truly unified seamless flow, we instantly execute Playwright on the new spec.
+        const spawnCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+
+        // Ensure relative path is used for playwright to avoid absolute path matching issues on Windows
+        const relativeSpecPath = path.relative(process.cwd(), specPath).replace(/\\/g, '/');
+
+        const testProc = require('child_process').spawn(spawnCmd, ['playwright', 'test', relativeSpecPath, '--headed'], {
+            stdio: 'inherit',
+            shell: true
+        });
+
+        await new Promise<void>((resolve) => {
+            testProc.on('close', (code: number) => {
+                if (code === 0) {
+                    console.log(`\n🎉 Test completed successfully!`);
+                } else {
+                    console.log(`\n❌ Test failed with exit code ${code}.`);
+                }
+                resolve();
+            });
+        });
     }
 
     async heal(locatorId: string, pageSource: string): Promise<void> {
