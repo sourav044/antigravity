@@ -51,53 +51,30 @@ async function main() {
     // Load Locators
     await LocatorMap.load(Config.DataIdValuePath);
 
-    // Run Load Test
-    // For this migration, we will spawn Cucumber processes or use Cucumber JS API.
-    // To simulate "Users" running in parallel, we can try to use Promise.all 
-    // with multiple Cucumber API runs, or just spawn child processes.
-    // Playwright natively handles parallelization well, but CucumberJS is often single threaded per process.
-    // For "Load Testing", usually we want parallel users. 
-
-    // Let's implement a simple loop that runs a Cucumber profile/command 'n' times in parallel.
-    // Note: This is a "poor man's load test". Real load testing with Playwright often uses artillery-playwright or similar.
-    // But we are sticking to the logic of the original .NET application which spawned Tasks.
-
+    // Playwright natively handles parallelization well.
+    // The load testing execution can just be calling playwright test.
     const userCount = parseInt(options.users || Config.Users.toString());
-    console.log(`Spawning ${userCount} users...`);
+    console.log(`Setting up ${userCount} users for Playwright load test...`);
 
-    const promises = [];
-    for (let i = 0; i < userCount; i++) {
-        promises.push(runUserLoad(i));
-    }
-
-    await Promise.all(promises);
-    console.log("Load Test Completed.");
-}
-
-async function runUserLoad(userId: number): Promise<void> {
-    console.log(`User ${userId} started.`);
+    // We can pass the user count to Playwright via environment variables
+    process.env.LOAD_TEST_USERS = userCount.toString();
 
     return new Promise((resolve, reject) => {
-        // Run cucumber-js via CLI for isolation, or use API. 
-        // CLI is safer for environment isolation per "user".
-        const cucumberPath = path.resolve('node_modules', '.bin', 'cucumber-js');
-        // On Windows it might be cucumber-js.cmd
-        const cmd = process.platform === 'win32' ? 'cucumber-js.cmd' : 'cucumber-js';
-
-        const proc = spawn(cmd, ['src/features/*.feature', '--require', 'dist/steps/*.js', '--require', 'dist/core/*.js', '--format', 'summary'], {
+        const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+        const proc = spawn(cmd, ['playwright', 'test'], {
             stdio: 'inherit',
             shell: true,
-            env: { ...process.env, USER_ID: userId.toString() }
+            env: process.env
         });
 
         proc.on('close', (code) => {
-            console.log(`User ${userId} finished with code ${code}`);
-            resolve();
+            console.log(`Load test finished with code ${code}`);
+            resolve(null);
         });
 
         proc.on('error', (err) => {
-            console.error(`User ${userId} failed:`, err);
-            resolve(); // Resolve anyway to let other users finish
+            console.error(`Load test failed:`, err);
+            resolve(null);
         });
     });
 }
