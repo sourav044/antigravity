@@ -18,7 +18,6 @@ export class InteractiveRecorder {
     private events: RecordedEvent[] = [];
     private isRecording: boolean = false;
     private isExpanded: boolean = true;
-    private isVerifyMode: boolean = false;
     private featureName: string = "NewFeature";
     private completionPromise: Promise<void> | null = null;
     private resolveCompletion: (() => void) | null = null;
@@ -77,7 +76,6 @@ export class InteractiveRecorder {
             return {
                 isRecording: this.isRecording,
                 isExpanded: this.isExpanded,
-                isVerifyMode: this.isVerifyMode,
                 featureName: this.featureName,
                 events: this.events
             };
@@ -104,10 +102,6 @@ export class InteractiveRecorder {
                 this.featureName = action.payload;
             } else if (action.type === 'toggleExpand') {
                 this.isExpanded = !this.isExpanded;
-            } else if (action.type === 'toggleVerify') {
-                this.isVerifyMode = !this.isVerifyMode;
-                console.log(`Verify Mode: ${this.isVerifyMode ? 'ON' : 'OFF'}`);
-                this.syncUiState();
             } else if (action.type === 'updateEvent') {
                 const { id, field, value } = action.payload;
                 const eventIndex = this.events.findIndex(e => e.id === id);
@@ -282,9 +276,6 @@ export class InteractiveRecorder {
                         .${uiId}-btn-generate { background: #2196F3; }
                         .${uiId}-btn-generate:hover { background: #1E88E5; }
 
-                        .${uiId}-btn-verify { background: #455a64; color: white; border: 1px solid #607d8b; }
-                        .${uiId}-btn-verify.active { background: #388e3c; border-color: #2e7d32; }
-
                         .${uiId}-btn-add { background: #607D8B; flex: none; width: auto; padding: 8px 12px;}
                         .${uiId}-btn-add:hover { background: #546E7A; }
                         .${uiId}-btn-toggle { background: #333; margin-top: 4px; transition: background 0.2s; }
@@ -361,7 +352,6 @@ export class InteractiveRecorder {
                             <div class="${uiId}-row">
                                 <button id="${uiId}-btn-start" class="${uiId}-btn ${uiId}-btn-start">Record</button>
                                 <button id="${uiId}-btn-stop" class="${uiId}-btn ${uiId}-btn-stop">Pause</button>
-                                <button id="${uiId}-btn-verify-mode" class="${uiId}-btn ${uiId}-btn-verify" title="When active, clicking elements records an Assert Text step instead of a Click">Verify: OFF</button>
                                 <button id="${uiId}-btn-generate" class="${uiId}-btn ${uiId}-btn-generate">Generate</button>
                             </div>
                             <button id="${uiId}-toggle-btn" class="${uiId}-btn ${uiId}-btn-toggle">▲ Hide Steps</button>
@@ -399,16 +389,18 @@ export class InteractiveRecorder {
                     dragStartX = e.clientX;
                     dragStartY = e.clientY;
 
-                    const containerStyle = (wrapper.children[0] as HTMLElement).style;
-                    const rect = wrapper.children[0].getBoundingClientRect();
+                    const container = document.getElementById(`${uiId}-container`);
+                    if (!container) return;
+
+                    const rect = container.getBoundingClientRect();
                     initialLeft = rect.left;
                     initialTop = rect.top;
 
                     // Switch to absolute positioning with left/top
-                    containerStyle.right = 'auto';
-                    containerStyle.bottom = 'auto';
-                    containerStyle.left = `${initialLeft}px`;
-                    containerStyle.top = `${initialTop}px`;
+                    container.style.right = 'auto';
+                    container.style.bottom = 'auto';
+                    container.style.left = `${initialLeft}px`;
+                    container.style.top = `${initialTop}px`;
 
                     e.preventDefault(); // prevents text selection while dragging
                 });
@@ -417,9 +409,12 @@ export class InteractiveRecorder {
                     if (!isDraggingPanel) return;
                     const dx = e.clientX - dragStartX;
                     const dy = e.clientY - dragStartY;
-                    const containerStyle = (wrapper.children[0] as HTMLElement).style;
-                    containerStyle.left = `${initialLeft + dx}px`;
-                    containerStyle.top = `${initialTop + dy}px`;
+
+                    const container = document.getElementById(`${uiId}-container`);
+                    if (container) {
+                        container.style.left = `${initialLeft + dx}px`;
+                        container.style.top = `${initialTop + dy}px`;
+                    }
                 });
 
                 document.addEventListener('mouseup', () => {
@@ -444,10 +439,6 @@ export class InteractiveRecorder {
                 document.getElementById(`${uiId}-btn-stop`)?.addEventListener('click', () => {
                     c.controlAction({ type: 'stop' });
                     c.updateRecorderUI();
-                });
-
-                document.getElementById(`${uiId}-btn-verify-mode`)?.addEventListener('click', () => {
-                    c.controlAction({ type: 'toggleVerify' });
                 });
 
                 document.getElementById(`${uiId}-btn-generate`)?.addEventListener('click', () => {
@@ -498,10 +489,10 @@ export class InteractiveRecorder {
                 if (btnVerify) {
                     if (state.isVerifyMode) {
                         btnVerify.classList.add('active');
-                        btnVerify.innerText = 'Verify: ON';
+                        btnVerify.innerHTML = `Verify: ON <span class="${uiId}-info-icon" data-tooltip="When Verify is ON, clicking an element reads its text and adds an 'Assert' step instead of clicking it.">?</span>`;
                     } else {
                         btnVerify.classList.remove('active');
-                        btnVerify.innerText = 'Verify: OFF';
+                        btnVerify.innerHTML = `Verify: OFF <span class="${uiId}-info-icon" data-tooltip="When Verify is ON, clicking an element reads its text and adds an 'Assert' step instead of clicking it.">?</span>`;
                     }
                 }
 
@@ -708,14 +699,18 @@ export class InteractiveRecorder {
 
                 // Click / Assert
                 document.addEventListener('click', async (e: MouseEvent) => {
-                    const target = e.target as HTMLElement;
+                    let target = e.target as HTMLElement;
                     if (isUiElement(target)) return;
 
-                    const sel = getBestSelector(target);
-                    // Check mode synchronously from the window object we inject 
-                    const state = await (window as any).getRecordingState();
+                    // Bubble up to find a button or link if the user clicked an inner element (like an icon or span)
+                    const clickableParent = target.closest('button, a, [role="button"], [role="link"], [type="button"], [type="submit"]');
+                    if (clickableParent && !isUiElement(clickableParent as HTMLElement)) {
+                        target = clickableParent as HTMLElement;
+                    }
 
-                    if (state.isVerifyMode) {
+                    const sel = getBestSelector(target);
+
+                    if (e.shiftKey) {
                         e.preventDefault();
                         e.stopPropagation();
                         (window as any).recordAction({

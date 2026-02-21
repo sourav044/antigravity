@@ -78,6 +78,17 @@ export class LocatorMap {
         return def.value !== undefined ? def.value : defaultValue;
     }
 
+    static findBySelectorAndValue(selector: string, value?: string): string | undefined {
+        for (const [id, def] of this.locators.entries()) {
+            // Check if primary selector matches. For value, treat undefined and empty string as equivalent for matching purposes if needed, 
+            // but strict equality is safer.
+            if (def.primary === selector && def.value === value) {
+                return id;
+            }
+        }
+        return undefined;
+    }
+
     static register(id: string, selector: string, value?: string) {
         this.locators.set(id, {
             id: id,
