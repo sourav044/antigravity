@@ -59,9 +59,12 @@ export class InteractiveRecorder {
     private async exposeBindings(page: Page) {
         await page.exposeFunction('recordAction', (actionRaw: Omit<RecordedEvent, 'id' | 'timestamp'>) => {
             if (this.isRecording) {
+                const stepNum = this.events.length + 1;
+                const cleanType = actionRaw.type.replace(/[^a-zA-Z0-9-]/g, '');
+
                 const event: RecordedEvent = {
                     ...actionRaw,
-                    id: crypto.randomUUID(),
+                    id: `${cleanType}_${stepNum}`,
                     timestamp: Date.now()
                 };
                 console.log(`[Captured] ${event.type}: ${event.selector || event.url}`);
@@ -108,12 +111,20 @@ export class InteractiveRecorder {
                 if (eventIndex !== -1) {
                     (this.events[eventIndex] as any)[field] = value;
                 }
+            } else if (action.type === 'updateEventName') {
+                const { oldId, newId } = action.payload;
+                const eventIndex = this.events.findIndex(e => e.id === oldId);
+                if (eventIndex !== -1 && newId.trim() !== '') {
+                    this.events[eventIndex].id = newId.trim().replace(/[^a-zA-Z0-9_]/g, '_');
+                    this.syncUiState();
+                }
             } else if (action.type === 'deleteEvent') {
                 this.events = this.events.filter(e => e.id !== action.payload);
                 this.syncUiState();
             } else if (action.type === 'addManualEvent') {
+                const stepNum = this.events.length + 1;
                 const newEvent: RecordedEvent = {
-                    id: crypto.randomUUID(),
+                    id: `manual_${stepNum}`,
                     type: 'manual',
                     selectorType: 'Manual',
                     selector: action.payload.selector || '{#id}',
@@ -527,9 +538,10 @@ export class InteractiveRecorder {
 
                     stepEl.innerHTML = `
                         <div class="${uiId}-step-header">
-                            <div>
+                            <div style="display:flex; align-items:center; gap: 6px;">
                                 <span class="${uiId}-step-badge" style="background: ${bgCol}">${index + 1}</span>
                                 <span class="${uiId}-step-type">${typeDisplay}</span>
+                                <input class="${uiId}-step-input step-id" data-id="${ev.id}" value="${ev.id}" style="width: 120px; margin: 0; font-weight: bold; color: #4CAF50;" title="Element Name" />
                             </div>
                             <div class="${uiId}-step-actions">
                                 <button class="${uiId}-btn-icon delete-btn" data-id="${ev.id}" title="Remove Step">✖</button>
@@ -579,6 +591,13 @@ export class InteractiveRecorder {
                     btn.addEventListener('click', (e) => {
                         const id = (e.currentTarget as HTMLElement).getAttribute('data-id');
                         (window as any).controlAction({ type: 'deleteEvent', payload: id });
+                    });
+                });
+
+                stepsContainer.querySelectorAll('.step-id').forEach(input => {
+                    input.addEventListener('change', (e) => {
+                        const target = e.currentTarget as HTMLInputElement;
+                        (window as any).controlAction({ type: 'updateEventName', payload: { oldId: target.getAttribute('data-id'), newId: target.value } });
                     });
                 });
 
@@ -816,9 +835,12 @@ export class InteractiveRecorder {
                 const isPassiveChange = !lastEvent || (lastEvent.type !== 'navigation' && lastEvent.type !== 'click');
 
                 console.log(`[Captured] ${isPassiveChange ? 'URL Change' : 'Navigation'}: ${url}`);
+                const eventType = isPassiveChange ? 'url-change' : 'navigation';
+                const stepNum = this.events.length + 1;
+
                 const event: RecordedEvent = {
-                    id: crypto.randomUUID(),
-                    type: isPassiveChange ? 'url-change' : 'navigation',
+                    id: `${eventType}_${stepNum}`,
+                    type: eventType,
                     url: url,
                     timestamp: Date.now()
                 };
