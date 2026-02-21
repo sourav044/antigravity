@@ -98,15 +98,15 @@ export class GeneratorAgent {
                 if (e.type === 'click') {
                     specBody += `
     await test.step('Click ${key}', async () => {
-        const selector = LocatorMap.getPlaywrightSelector('${key}', '${e.selector}');
+        const selector = LocatorMap.getPlaywrightSelector('${key}');
         await expect(page.locator(selector).first()).toBeVisible({ timeout: 15000 });
         await page.locator(selector).first().click();
     });`;
                 } else if (e.type === 'input') {
                     specBody += `
     await test.step('Type into ${key}', async () => {
-        const selector = LocatorMap.getPlaywrightSelector('${key}', '${e.selector}');
-        const expectedValue = LocatorMap.getExpectedValue('${key}', '${e.value}');
+        const selector = LocatorMap.getPlaywrightSelector('${key}');
+        const expectedValue = LocatorMap.getExpectedValue('${key}');
         const locator = page.locator(selector).first();
         await expect(locator).toBeVisible({ timeout: 15000 });
         try {
@@ -120,7 +120,7 @@ export class GeneratorAgent {
                 } else if (e.type === 'drag-select') {
                     specBody += `
     await test.step('Drag Select text inside ${key}', async () => {
-        const selector = LocatorMap.getPlaywrightSelector('${key}', '${e.selector}');
+        const selector = LocatorMap.getPlaywrightSelector('${key}');
         const locator = page.locator(selector).first();
         await expect(locator).toBeVisible({ timeout: 15000 });
         await locator.dblclick(); 
@@ -130,8 +130,8 @@ export class GeneratorAgent {
                     const assertMethod = isInput ? 'toHaveValue' : 'toHaveText';
                     specBody += `
     await test.step('Verify text in ${key}', async () => {
-        const selector = LocatorMap.getPlaywrightSelector('${key}', '${e.selector}');
-        const expectedValue = LocatorMap.getExpectedValue('${key}', '${e.value}');
+        const selector = LocatorMap.getPlaywrightSelector('${key}');
+        const expectedValue = LocatorMap.getExpectedValue('${key}');
         const locator = page.locator(selector).first();
         await expect(locator).toBeVisible({ timeout: 15000 });
         await expect(locator).${assertMethod}(expectedValue, { timeout: 10000 });

@@ -61,21 +61,43 @@ export class LocatorMap {
         return this.locators.get(id);
     }
 
-    static getPlaywrightSelector(id: string, defaultSelector: string): string {
+    static getPlaywrightSelector(id: string, defaultSelector?: string): string {
         const def = this.locators.get(id);
-        if (!def) return defaultSelector;
+        if (!def) return defaultSelector || id;
 
-        if (def.fallbacks && def.fallbacks.length > 0) {
-            // Join primary and fallbacks with a comma to create a Playwright union selector
-            return [def.primary, ...def.fallbacks].join(', ');
+        const processSelector = (str: string) => {
+            if (!str) return str;
+            // Check if it's a bare attribute like `data-testid="loginButton"`
+            if (!str.startsWith('[')) {
+                // If it looks like an attribute assignment (e.g. data-xyz=...), wrap it in brackets.
+                if (/^[a-zA-Z0-9_-]+=['"][^'"]+['"]$/.test(str)) {
+                    return `[${str}]`;
+                }
+            }
+            return str;
+        };
+
+        let primaryStr = processSelector(def.primary);
+        const processedFallbacks = (def.fallbacks || []).map(processSelector);
+
+        if (!primaryStr && processedFallbacks.length > 0) {
+            primaryStr = processedFallbacks[0];
+            processedFallbacks.shift(); // Remove the element we just promoted to primary
         }
-        return def.primary;
+
+        if (processedFallbacks.length > 0) {
+            // Join primary and fallbacks with a comma to create a Playwright union selector
+            const validSelectors = primaryStr ? [primaryStr, ...processedFallbacks] : processedFallbacks;
+            return validSelectors.join(', ');
+        }
+
+        return primaryStr || defaultSelector || id;
     }
 
-    static getExpectedValue(id: string, defaultValue: string): string {
+    static getExpectedValue(id: string, defaultValue?: string): string {
         const def = this.locators.get(id);
-        if (!def) return defaultValue;
-        return def.value !== undefined ? def.value : defaultValue;
+        if (!def) return defaultValue || '';
+        return def.value !== undefined ? def.value : (defaultValue || '');
     }
 
     static findBySelectorAndValue(selector: string, value?: string): string | undefined {
