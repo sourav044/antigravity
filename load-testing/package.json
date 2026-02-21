@@ -13,8 +13,8 @@
     "test": "npx playwright test",
     "test:ui": "npx playwright test --ui",
     "test:report": "npx playwright show-report report/playwright-report",
-    "test:docker": "docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up --build",
-    "test:docker:scale": "docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up --build --scale test-runner=3",
+    "test:docker": "docker compose -f docker/docker-compose.yml down -v --rmi local && docker compose -f docker/docker-compose.yml up --build --abort-on-container-exit --exit-code-from report-merger",
+    "test:docker:scale": "docker compose -f docker/docker-compose.yml down -v --rmi local && docker compose -f docker/docker-compose.yml up --build --scale test-runner=3 --abort-on-container-exit --exit-code-from report-merger",
     "lint": "eslint ."
   },
   "keywords": [],

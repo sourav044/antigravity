@@ -1,8 +1,0 @@
-
-Running 1 test using 1 worker
-
-[1A[2K[1/1] [Container-ca955839dcce] › src/tests/newfeature.spec.ts:9:5 › NewFeature
-[1A[2K[Container-ca955839dcce] › src/tests/newfeature.spec.ts:9:5 › NewFeature
-Loaded 6 definitions from ./data/locators.json
-
-[1A[2K  1 passed (9.7s)
