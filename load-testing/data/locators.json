@@ -8,27 +8,20 @@
     ]
   },
   "newfeature_click_1": {
-    "primary": "[data-testid=\"sf-text-open-translator-button\"]"
+    "primary": "div#textareasContainer > div > section > div > div > d-textarea > div"
   },
   "newfeature_click_2": {
     "primary": "div#textareasContainer > div > section > div > div > d-textarea > div"
   },
-  "newfeature_click_3": {
-    "primary": "[data-testid=\"cookie-banner-strict-accept-all\"]"
-  },
-  "newfeature_input_4": {
+  "newfeature_input_3": {
     "primary": "[data-testid=\"translator-source-input\"]",
-    "value": "I am "
+    "value": "I am starting"
   },
-  "newfeature_drag-select_5": {
-    "primary": "section > div > d-textarea > div > p",
-    "value": "Ich bin"
+  "newfeature_drag-select_4": {
+    "primary": ".--l.--r.container-target",
+    "value": "Ich fange an."
   },
-  "newfeature_click_6": {
+  "newfeature_click_5": {
     "primary": "#textareasContainer"
-  },
-  "newfeature_input_7": {
-    "primary": "[data-testid=\"translator-target-input\"]",
-    "value": "Ich bin "
   }
 }

@@ -25,18 +25,6 @@ export class Config {
         return process.env.DATA_ID_VALUE_PATH || path.join(process.cwd(), 'data', 'locators.json');
     }
 
-    static get OllamaKey(): string {
-        return process.env.OPENAI_KEY || 'mock-key';
-    }
-
-    static get OllamaModel(): string {
-        return process.env.OLLAMA_MODEL || 'llama3';
-    }
-
-    static get OllamaBaseUrl(): string {
-        return process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    }
-
     // Command line args can override env vars if needed, 
     // but for now we follow the .NET pattern of using Env vars primarily.
 }

@@ -3,7 +3,6 @@ dist/
 .env
 npm-debug.log
 yarn-error.log
-playwright-report/
-test-results/
+report/
 .DS_Store
 Thumbs.db

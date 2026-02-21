@@ -11,9 +11,10 @@
     "start": "node dist/index.js",
     "generate": "node dist/index.js --generate",
     "test": "npx playwright test",
-    "test:headed": "npx playwright test --headed",
-    "test:debug": "npx playwright test --debug",
-    "test:report": "npx playwright show-report",
+    "test:ui": "npx playwright test --ui",
+    "test:report": "npx playwright show-report report/playwright-report",
+    "test:docker": "docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up --build",
+    "test:docker:scale": "docker compose -f docker/docker-compose.yml down -v && docker compose -f docker/docker-compose.yml up --build --scale test-runner=3",
     "lint": "eslint ."
   },
   "keywords": [],
@@ -25,7 +26,6 @@
     "csv-writer": "^1.6.0",
     "dotenv": "^16.3.1",
     "fs-extra": "^11.2.0",
-    "openai": "^4.20.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },

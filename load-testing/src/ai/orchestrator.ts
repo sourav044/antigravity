@@ -1,6 +1,4 @@
-import { PlannerAgent } from './planner';
 import { GeneratorAgent } from './generator';
-import { HealerAgent } from './healer';
 import { chromium, Browser, Page } from 'playwright';
 import { Config } from '../core/config';
 import fs from 'fs-extra';
@@ -8,14 +6,10 @@ import path from 'path';
 import { InteractiveRecorder } from './recorder';
 
 export class AgentOrchestrator {
-    private planner: PlannerAgent;
     private generator: GeneratorAgent;
-    private healer: HealerAgent;
 
     constructor() {
-        this.planner = new PlannerAgent();
         this.generator = new GeneratorAgent();
-        this.healer = new HealerAgent();
     }
 
     async runInteractiveMode(): Promise<void> {
@@ -48,15 +42,30 @@ export class AgentOrchestrator {
 
         // Generate Playwright Spec
         const sanitizedName = featureName.replace(/[^a-zA-Z0-9_\-]/g, '').replace(/\s+/g, '_').toLowerCase();
-        const specContent = await this.generator.generatePlaywrightSpec(featureName, events);
+        const generated = await this.generator.generatePlaywrightSpec(featureName, events);
 
+        // 1. Write Spec File
         const specPath = path.join(process.cwd(), 'src', 'tests', `${sanitizedName}.spec.ts`);
         await fs.ensureDir(path.dirname(specPath));
-        await fs.writeFile(specPath, specContent);
+        await fs.writeFile(specPath, generated.specContent);
+
+        // 2. Write Page Object Models (POMs)
+        const pagesDir = path.join(process.cwd(), 'src', 'pages');
+        await fs.ensureDir(pagesDir);
+        for (const [className, content] of Object.entries(generated.pages)) {
+            const pagePath = path.join(pagesDir, `${className}.ts`);
+            await fs.writeFile(pagePath, content);
+            console.log(`📄 Page Object:   ${pagePath}`);
+        }
+
+        // 3. Write Custom Fixtures file
+        const fixturePath = path.join(process.cwd(), 'src', 'tests', 'fixtures.ts');
+        await fs.writeFile(fixturePath, generated.fixtureContent);
 
         console.log(`\n✅ GENERATION COMPLETE`);
         console.log(`---------------------------------------------------`);
         console.log(`📄 Spec File:     ${specPath}`);
+        console.log(`📄 Fixture File:  ${fixturePath}`);
         console.log(`---------------------------------------------------\n`);
 
         console.log(`🚀 Automatically running the generated test in Playwright to verify...`);
@@ -82,11 +91,5 @@ export class AgentOrchestrator {
                 resolve();
             });
         });
-    }
-
-    async heal(locatorId: string, pageSource: string): Promise<void> {
-        console.log(`Healer: Attempting to heal ${locatorId}...`);
-        const newLocatorKey = await this.healer.healLocator(locatorId, pageSource);
-        console.log(`Healed Locator: ${newLocatorKey}`);
     }
 }

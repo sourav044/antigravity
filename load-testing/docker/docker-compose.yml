@@ -1,0 +1,28 @@
+services:
+  test-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    # Using local bind mounts to save results into docker/container_results
+    volumes:
+      - ./container_results/playwright-report:/app/playwright-report
+      - ./container_results/blob-report:/app/blob-report
+      - ./logs:/app/logs
+    environment:
+      - HEADLESS_TEST=true
+    command: >
+      sh -c "REPORT_DIR=/app/playwright-report/$$HOSTNAME BLOB_DIR=/app/blob-report PROJECT_NAME=Container-$$HOSTNAME npx playwright test | tee /app/logs/$$(date +%Y-%m-%d_%H-%M-%S)_$$HOSTNAME.log"
+
+  report-merger:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    depends_on:
+      test-runner:
+        condition: service_completed_successfully
+    volumes:
+      - ./container_results/playwright-report:/app/playwright-report
+      - ./container_results/blob-report:/app/blob-report
+      - ../scripts:/app/scripts
+    command: >
+      sh -c "PLAYWRIGHT_HTML_REPORT=/app/playwright-report/consolidated PLAYWRIGHT_JSON_OUTPUT_NAME=/app/playwright-report/consolidated/report.json npx playwright merge-reports /app/blob-report --reporter html --reporter json && node /app/scripts/generate-summary.js /app/playwright-report/consolidated"

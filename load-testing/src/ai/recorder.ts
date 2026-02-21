@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 
 export interface RecordedEvent {
     id: string; // Unique ID for each event for UI tracking
-    type: 'click' | 'input' | 'navigation' | 'url-change' | 'drag-select' | 'manual';
+    type: 'click' | 'input' | 'navigation' | 'url-change' | 'drag-select' | 'manual' | 'assert';
     selectorType?: 'ID' | 'CSS' | 'XPath' | 'Text' | 'Data-testid' | 'Name' | 'Role' | 'Manual';
     selector?: string;
     value?: string;
@@ -18,6 +18,7 @@ export class InteractiveRecorder {
     private events: RecordedEvent[] = [];
     private isRecording: boolean = false;
     private isExpanded: boolean = true;
+    private isVerifyMode: boolean = false;
     private featureName: string = "NewFeature";
     private completionPromise: Promise<void> | null = null;
     private resolveCompletion: (() => void) | null = null;
@@ -76,6 +77,7 @@ export class InteractiveRecorder {
             return {
                 isRecording: this.isRecording,
                 isExpanded: this.isExpanded,
+                isVerifyMode: this.isVerifyMode,
                 featureName: this.featureName,
                 events: this.events
             };
@@ -102,6 +104,10 @@ export class InteractiveRecorder {
                 this.featureName = action.payload;
             } else if (action.type === 'toggleExpand') {
                 this.isExpanded = !this.isExpanded;
+            } else if (action.type === 'toggleVerify') {
+                this.isVerifyMode = !this.isVerifyMode;
+                console.log(`Verify Mode: ${this.isVerifyMode ? 'ON' : 'OFF'}`);
+                this.syncUiState();
             } else if (action.type === 'updateEvent') {
                 const { id, field, value } = action.payload;
                 const eventIndex = this.events.findIndex(e => e.id === id);
@@ -275,6 +281,10 @@ export class InteractiveRecorder {
                         .${uiId}-btn-stop:hover { background: #F57C00; }
                         .${uiId}-btn-generate { background: #2196F3; }
                         .${uiId}-btn-generate:hover { background: #1E88E5; }
+
+                        .${uiId}-btn-verify { background: #455a64; color: white; border: 1px solid #607d8b; }
+                        .${uiId}-btn-verify.active { background: #388e3c; border-color: #2e7d32; }
+
                         .${uiId}-btn-add { background: #607D8B; flex: none; width: auto; padding: 8px 12px;}
                         .${uiId}-btn-add:hover { background: #546E7A; }
                         .${uiId}-btn-toggle { background: #333; margin-top: 4px; transition: background 0.2s; }
@@ -351,6 +361,7 @@ export class InteractiveRecorder {
                             <div class="${uiId}-row">
                                 <button id="${uiId}-btn-start" class="${uiId}-btn ${uiId}-btn-start">Record</button>
                                 <button id="${uiId}-btn-stop" class="${uiId}-btn ${uiId}-btn-stop">Pause</button>
+                                <button id="${uiId}-btn-verify-mode" class="${uiId}-btn ${uiId}-btn-verify" title="When active, clicking elements records an Assert Text step instead of a Click">Verify: OFF</button>
                                 <button id="${uiId}-btn-generate" class="${uiId}-btn ${uiId}-btn-generate">Generate</button>
                             </div>
                             <button id="${uiId}-toggle-btn" class="${uiId}-btn ${uiId}-btn-toggle">▲ Hide Steps</button>
@@ -435,6 +446,10 @@ export class InteractiveRecorder {
                     c.updateRecorderUI();
                 });
 
+                document.getElementById(`${uiId}-btn-verify-mode`)?.addEventListener('click', () => {
+                    c.controlAction({ type: 'toggleVerify' });
+                });
+
                 document.getElementById(`${uiId}-btn-generate`)?.addEventListener('click', () => {
                     c.controlAction({ type: 'generate' });
                 });
@@ -479,6 +494,17 @@ export class InteractiveRecorder {
                     dot.classList.remove('recording');
                 }
 
+                const btnVerify = document.getElementById(`${uiId}-btn-verify-mode`) as HTMLButtonElement | null;
+                if (btnVerify) {
+                    if (state.isVerifyMode) {
+                        btnVerify.classList.add('active');
+                        btnVerify.innerText = 'Verify: ON';
+                    } else {
+                        btnVerify.classList.remove('active');
+                        btnVerify.innerText = 'Verify: OFF';
+                    }
+                }
+
                 if (document.activeElement !== nameInput) {
                     nameInput.value = state.featureName;
                 }
@@ -504,6 +530,7 @@ export class InteractiveRecorder {
                         bgCol = '#00BCD4'; // Cyan
                         typeDisplay = 'URL Change';
                     }
+                    if (ev.type === 'assert') bgCol = '#9C27B0'; // Purple
                     if (ev.type === 'drag-select') bgCol = '#9C27B0';
                     if (ev.type === 'manual') bgCol = '#607D8B';
 
@@ -543,7 +570,7 @@ export class InteractiveRecorder {
                                 <input class="${uiId}-step-input step-selector" data-id="${ev.id}" value="${ev.selector || ''}" style="margin: 0;" />
                             </div>
                         `;
-                        if (ev.type === 'input' || ev.type === 'manual') {
+                        if (ev.type === 'input' || ev.type === 'manual' || ev.type === 'assert') {
                             stepEl.innerHTML += `
                                 <div style="display:flex; align-items:center; gap:4px; margin-bottom: 4px;">
                                     <span style="font-size:10px; color:#888; width: 65px; display:inline-block;">Value</span>
@@ -672,18 +699,38 @@ export class InteractiveRecorder {
                     return { type: 'CSS', value: target.tagName.toLowerCase() };
                 }
 
-                // Click
-                document.addEventListener('click', (e: MouseEvent) => {
+                function getElementText(el: HTMLElement): string {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        return (el as HTMLInputElement).value || '';
+                    }
+                    return el.innerText ? el.innerText.trim() : '';
+                }
+
+                // Click / Assert
+                document.addEventListener('click', async (e: MouseEvent) => {
                     const target = e.target as HTMLElement;
                     if (isUiElement(target)) return;
 
                     const sel = getBestSelector(target);
+                    // Check mode synchronously from the window object we inject 
+                    const state = await (window as any).getRecordingState();
 
-                    (window as any).recordAction({
-                        type: 'click',
-                        selectorType: sel.type,
-                        selector: sel.value
-                    });
+                    if (state.isVerifyMode) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        (window as any).recordAction({
+                            type: 'assert',
+                            selectorType: sel.type,
+                            selector: sel.value,
+                            value: getElementText(target)
+                        });
+                    } else {
+                        (window as any).recordAction({
+                            type: 'click',
+                            selectorType: sel.type,
+                            selector: sel.value
+                        });
+                    }
                 }, true);
 
                 // Input

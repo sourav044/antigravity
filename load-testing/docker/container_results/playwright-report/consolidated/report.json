@@ -1,0 +1,126 @@
+{
+  "config": {
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [],
+    "reporter": [
+      [
+        "list"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "rootDir": "/app/src/tests",
+    "quiet": false,
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "runAgents": "none",
+    "version": "1.58.2",
+    "workers": 6,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "newfeature.spec.ts",
+      "file": "newfeature.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "NewFeature",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectName": "Container-ca955839dcce",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7930,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "Loaded 6 definitions from ./data/locators.json\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "Initial Navigation",
+                      "duration": 5061
+                    },
+                    {
+                      "title": "URL changed to https://www.deepl.com/en/translator",
+                      "duration": 36
+                    },
+                    {
+                      "title": "Click newfeature_click_1",
+                      "duration": 121
+                    },
+                    {
+                      "title": "Navigate to https://www.deepl.com/en/translator",
+                      "duration": 2074
+                    },
+                    {
+                      "title": "Click newfeature_click_2",
+                      "duration": 100
+                    },
+                    {
+                      "title": "Type into newfeature_input_3",
+                      "duration": 382
+                    },
+                    {
+                      "title": "Drag Select text inside newfeature_drag-select_4",
+                      "duration": 514
+                    },
+                    {
+                      "title": "Click newfeature_click_5",
+                      "duration": 78
+                    }
+                  ],
+                  "startTime": "2026-02-21T12:13:58.518Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "3a20f5bf6a22ee5d2d69-839c2e27e6eb2565e91c",
+          "file": "newfeature.spec.ts",
+          "line": 9,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-02-21T12:13:56.999Z",
+    "duration": 9673.1201171875,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
