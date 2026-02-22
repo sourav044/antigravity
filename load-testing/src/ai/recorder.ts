@@ -5,7 +5,7 @@ import { getExistingScenarios } from './reusable-steps';
 
 export interface RecordedEvent {
     id: string; // Unique ID for each event for UI tracking
-    type: 'click' | 'input' | 'navigation' | 'url-change' | 'drag-select' | 'manual' | 'assert' | 'imported';
+    type: 'click' | 'input' | 'navigation' | 'url-change' | 'drag-select' | 'drag-drop' | 'manual' | 'assert' | 'imported';
     selectorType?: 'ID' | 'CSS' | 'XPath' | 'Text' | 'Data-testid' | 'Name' | 'Role' | 'Manual';
     selector?: string;
     value?: string;
@@ -742,8 +742,8 @@ export class InteractiveRecorder {
                         bgCol = '#00BCD4'; // Cyan
                         typeDisplay = 'URL Change';
                     }
-                    if (ev.type === 'assert') bgCol = '#9C27B0'; // Purple
                     if (ev.type === 'drag-select') bgCol = '#9C27B0';
+                    if (ev.type === 'drag-drop') { bgCol = '#E91E63'; typeDisplay = 'Drag & Drop'; }
                     if (ev.type === 'manual') bgCol = '#607D8B';
                     if (ev.type === 'imported') {
                         bgCol = '#9E9E9E'; // Gray
@@ -782,6 +782,17 @@ export class InteractiveRecorder {
                             </div>
                             <div style="display:flex; align-items:center; gap:4px; margin-bottom: 4px;">
                                 <span style="font-size:10px; color:#888; width: 65px; display:inline-block;">Text</span>
+                                <input class="${uiId}-step-input step-val" data-id="${ev.id}" value="${ev.value || ''}" style="margin: 0;" />
+                            </div>
+                        `;
+                    } else if (ev.type === 'drag-drop') {
+                        stepEl.innerHTML += `
+                            <div style="display:flex; align-items:center; gap:4px; margin-bottom: 4px;">
+                                <span style="font-size:10px; color:#888; width: 65px; display:inline-block;">Source</span>
+                                <input class="${uiId}-step-input step-selector" data-id="${ev.id}" value="${ev.selector || ''}" style="margin: 0;" />
+                            </div>
+                            <div style="display:flex; align-items:center; gap:4px; margin-bottom: 4px;">
+                                <span style="font-size:10px; color:#888; width: 65px; display:inline-block;">Target</span>
                                 <input class="${uiId}-step-input step-val" data-id="${ev.id}" value="${ev.value || ''}" style="margin: 0;" />
                             </div>
                         `;
@@ -854,7 +865,7 @@ export class InteractiveRecorder {
                 const uiId = 'antigravity-recorder-ui';
 
                 function isUiElement(el: Element | null): boolean {
-                    return el?.closest(`#${uiId}`) !== null;
+                    return el?.closest(`#${uiId} `) !== null;
                 }
 
                 function getBestSelector(target: HTMLElement): { type: RecordedEvent['selectorType'], value: string } {
@@ -863,21 +874,26 @@ export class InteractiveRecorder {
                     };
 
                     const testid = target.getAttribute('data-testid');
-                    if (testid && isUnique(`[data-testid="${testid}"]`)) return { type: 'Data-testid', value: `[data-testid="${testid}"]` };
+                    if (testid && isUnique(`[data - testid= "${testid}"]`)) return { type: 'Data-testid', value: `[data - testid= "${testid}"]` };
 
-                    if (target.id && isUnique(`#${target.id}`)) return { type: 'ID', value: `#${target.id}` };
+                    if (target.id && isUnique(`#${target.id} `)) return { type: 'ID', value: `#${target.id} ` };
 
                     const name = target.getAttribute('name');
-                    if (name && isUnique(`[name="${name}"]`)) return { type: 'Name', value: `[name="${name}"]` };
+                    if (name && isUnique(`[name = "${name}"]`)) return { type: 'Name', value: `[name = "${name}"]` };
 
                     const role = target.getAttribute('role');
-                    if (role && isUnique(`[role="${role}"]`)) return { type: 'Role', value: `[role="${role}"]` };
+                    if (role && isUnique(`[role = "${role}"]`)) return { type: 'Role', value: `[role = "${role}"]` };
+
+                    if (target.tagName.toLowerCase() === 'a') {
+                        const href = target.getAttribute('href');
+                        if (href && isUnique(`a[href = "${href}"]`)) return { type: 'CSS', value: `a[href = "${href}"]` };
+                    }
 
                     if (target.classList && target.classList.length > 0) {
                         const classes = Array.from(target.classList).filter(c => c && typeof c === 'string' && !c.includes(':'));
                         if (classes.length > 0) {
                             const escapedClasses = classes.map(c => CSS.escape(c as string)).join('.');
-                            const cssSel = `.${escapedClasses}`;
+                            const cssSel = `.${escapedClasses} `;
                             if (isUnique(cssSel)) return { type: 'CSS', value: cssSel };
                         }
                     }
@@ -980,15 +996,19 @@ export class InteractiveRecorder {
                     });
                 }, true);
 
-                // Drag Select logic
+                // Drag Select / Drag Drop logic
                 let mousedownX = 0;
                 let mousedownY = 0;
                 let isDragging = false;
+                let dragStartElement: HTMLElement | null = null;
+                let dragStartTime = 0;
 
                 document.addEventListener('mousedown', (e: MouseEvent) => {
                     if (isUiElement(e.target as HTMLElement)) return;
                     mousedownX = e.clientX;
                     mousedownY = e.clientY;
+                    dragStartElement = e.target as HTMLElement;
+                    dragStartTime = Date.now();
                     isDragging = true;
                 }, true);
 
@@ -1002,15 +1022,14 @@ export class InteractiveRecorder {
                     const dx = e.clientX - mousedownX;
                     const dy = e.clientY - mousedownY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
+                    const timeElapsed = Date.now() - dragStartTime;
 
                     if (distance > 10) {
                         const selection = window.getSelection();
                         if (selection && selection.toString().trim() !== '') {
+                            // Text selection
                             const text = selection.toString().trim();
-                            // Find the parent element of the selection
                             let parent = selection.anchorNode?.parentElement;
-
-                            // If it's a text node, use the parent element
                             while (parent && parent.nodeType !== 1) { // 1 is ELEMENT_NODE
                                 parent = parent.parentElement;
                             }
@@ -1022,6 +1041,34 @@ export class InteractiveRecorder {
                                     selectorType: sel.type,
                                     selector: sel.value,
                                     value: text
+                                });
+                            }
+                        } else if (dragStartElement && timeElapsed > 150) {
+                            // Element Drag & Drop
+                            // A drag is intentional (distance > 10) and usually takes time (>150ms). 
+                            // This helps prevent tiny accidental clicks from being registered as drags.
+                            let targetEl = e.target as HTMLElement;
+
+                            // If user dropped on the dragged element itself (pointer capture), try to find underlying
+                            if (targetEl === dragStartElement) {
+                                // Temporarily hide it to find the drop target underneath
+                                const oldDisplay = dragStartElement.style.display;
+                                dragStartElement.style.display = 'none';
+                                const underlying = document.elementFromPoint(e.clientX, e.clientY);
+                                if (underlying) targetEl = underlying as HTMLElement;
+                                dragStartElement.style.display = oldDisplay;
+                            }
+
+                            const sourceSel = getBestSelector(dragStartElement);
+                            const targetSel = getBestSelector(targetEl);
+
+                            // We ONLY record this if the source and target are observably different elements.
+                            if (sourceSel.value !== targetSel.value) {
+                                (window as any).recordAction({
+                                    type: 'drag-drop',
+                                    selectorType: 'CSS', // Explicitly marking it CSS for reliability on both sides
+                                    selector: sourceSel.value,
+                                    value: targetSel.value
                                 });
                             }
                         }

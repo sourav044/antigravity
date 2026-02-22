@@ -103,3 +103,6 @@ Use the following npm scripts to run tests and view the generated reports:
    npm run test:report
    ```
    This starts a local server and opens your browser to view the generated HTML report from `report/playwright-report`.
+
+
+   https://automationpanda.com/2021/12/29/want-to-practice-test-automation-try-these-demo-sites/wsl 

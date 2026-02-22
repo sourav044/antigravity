@@ -7,93 +7,15 @@
       ".auth-login"
     ]
   },
-  "login_logout_click_1": {
-    "primary": "#login_credentials"
+  "newfeature_drag-drop_1": {
+    "primary": ".cdk-drag.example-box.cdk-drag-dragging ",
+    "value": "#reordering-lists "
   },
-  "login_logout_click_2": {
-    "primary": "#user-name"
+  "newfeature_step_1": {
+    "primary": "cdk-drag-drop-overview-example > div"
   },
-  "login_logout_input_3": {
-    "primary": "#user-name",
-    "value": "standard_user"
-  },
-  "login_logout_click_4": {
-    "primary": ".login_password"
-  },
-  "login_logout_click_5": {
-    "primary": "#password"
-  },
-  "login_logout_input_6": {
-    "primary": "#password",
-    "value": "secret_sauce"
-  },
-  "login_logout_click_7": {
-    "primary": "#login-button"
-  },
-  "login_logout_click_8": {
-    "primary": "body"
-  },
-  "login_logout_click_9": {
-    "primary": ".header_label"
-  },
-  "login_logout_click_10": {
-    "primary": "#react-burger-menu-btn"
-  },
-  "login_logout_click_11": {
-    "primary": "#logout_sidebar_link"
-  },
-  "newfeature_click_1": {
-    "primary": "#login_button_container"
-  },
-  "login_assert_1": {
-    "primary": "#login_credentials",
-    "value": "Accepted usernames are:\nstandard_user\nlocked_out_user\nproblem_user\nperformance_glitch_user\nerror_user\nvisual_user"
-  },
-  "login_assert_2": {
-    "primary": "#user-name",
-    "value": ""
-  },
-  "login_assert_3": {
-    "primary": ".login_password",
-    "value": "Password for all users:\nsecret_sauce"
-  },
-  "login_assert_4": {
-    "primary": "#password",
-    "value": ""
-  },
-  "login_assert_5": {
-    "primary": "#login-button",
-    "value": "Login"
-  },
-  "login_assert_6": {
-    "primary": "#react-burger-menu-btn",
-    "value": "Open Menu"
-  },
-  "login_assert_7": {
-    "primary": "#logout_sidebar_link",
-    "value": "Logout"
-  },
-  "cart_click_1": {
-    "primary": "#remove-sauce-labs-backpack"
-  },
-  "cart_click_2": {
-    "primary": "#add-to-cart-sauce-labs-backpack"
-  },
-  "cart_click_3": {
-    "primary": ".shopping_cart_link"
-  },
-  "cart_drag-select_4": {
-    "primary": ".cart_desc_label",
-    "value": "QTYDescription"
-  },
-  "cart_click_5": {
-    "primary": "#contents_wrapper"
-  },
-  "cart_drag-select_6": {
-    "primary": ".title",
-    "value": "Your Cart"
-  },
-  "cart_click_7": {
-    "primary": ".header_secondary_container"
+  "newfeature_drag-drop_3": {
+    "primary": ".cdk-drag.example-box.ng-star-inserted.cdk-drag-dragging ",
+    "value": ".cdk-drag.example-box.ng-star-inserted.cdk-drag-placeholder "
   }
 }

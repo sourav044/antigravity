@@ -184,6 +184,34 @@ export class GeneratorAgent {
         const locator = page.locator(selector).first();
         await expect(locator).toBeVisible({ timeout: 15000 });
         await locator.dblclick();`;
+                } else if (e.type === 'drag-drop') {
+                    // Angular CDK and complex frameworks need very deliberate mouse steps to recognize drag.
+                    rawStepCode = `        const sourceSelectorRaw = LocatorMap.getPlaywrightSelector('${key}');
+        const targetSelectorRaw = LocatorMap.getExpectedValue('${key}');
+        const sourceSelector = sourceSelectorRaw.replace(/\\.cdk-drag-dragging/g, '').replace(/\\.cdk-drag-placeholder/g, '').trim();
+        const targetSelector = targetSelectorRaw.trim();
+        const sourceLocator = page.locator(sourceSelector).first();
+        const targetLocator = page.locator(targetSelector).first();
+        
+        await expect(sourceLocator).toBeVisible({ timeout: 15000 });
+        
+        // Robust Drag and Drop for Angular CDK
+        await sourceLocator.hover();
+        await page.mouse.down();
+        // Move slightly to initiate Drag
+        const srcBound = await sourceLocator.boundingBox();
+        if (srcBound) {
+            await page.mouse.move(srcBound.x + srcBound.width / 2 + 10, srcBound.y + srcBound.height / 2 + 10, { steps: 2 });
+        }
+        await page.waitForTimeout(200);
+        
+        // Target element might only appear after drag starts (like a placeholder)
+        await expect(targetLocator).toBeVisible({ timeout: 15000 });
+        
+        // Move to Target
+        await targetLocator.hover();
+        await page.waitForTimeout(200);
+        await page.mouse.up();`;
                 } else if (e.type === 'assert') {
                     const isInput = e.selector?.toLowerCase().includes('input') || e.selector?.toLowerCase().includes('textarea');
                     const assertMethod = isInput ? 'toHaveValue' : 'toHaveText';
@@ -203,6 +231,7 @@ export class GeneratorAgent {
                     if (e.type === 'click') stepTitle = `Click ${key}`;
                     else if (e.type === 'input') stepTitle = `Type into ${key}`;
                     else if (e.type === 'drag-select') stepTitle = `Drag Select text inside ${key}`;
+                    else if (e.type === 'drag-drop') stepTitle = `Drag ${key} to target`;
                     else if (e.type === 'assert') stepTitle = `Verify text in ${key}`;
 
                     importedStepsByScenario[featureName].push({ title: stepTitle, rawCode: rawStepCode });
