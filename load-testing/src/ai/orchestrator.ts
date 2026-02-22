@@ -52,8 +52,8 @@ export class AgentOrchestrator {
         // 2. Write Page Object Models (POMs)
         const pagesDir = path.join(process.cwd(), 'src', 'pages');
         await fs.ensureDir(pagesDir);
-        for (const [className, content] of Object.entries(generated.pages)) {
-            const pagePath = path.join(pagesDir, `${className}.ts`);
+        for (const [fileName, content] of Object.entries(generated.pages)) {
+            const pagePath = path.join(pagesDir, fileName);
             await fs.writeFile(pagePath, content);
             console.log(`📄 Page Object:   ${pagePath}`);
         }

@@ -1,15 +1,17 @@
 import { chromium, Browser, Page, BrowserContext } from 'playwright';
 import { Config } from '../core/config';
 import * as crypto from 'crypto';
+import { getExistingScenarios } from './reusable-steps';
 
 export interface RecordedEvent {
     id: string; // Unique ID for each event for UI tracking
-    type: 'click' | 'input' | 'navigation' | 'url-change' | 'drag-select' | 'manual' | 'assert';
+    type: 'click' | 'input' | 'navigation' | 'url-change' | 'drag-select' | 'manual' | 'assert' | 'imported';
     selectorType?: 'ID' | 'CSS' | 'XPath' | 'Text' | 'Data-testid' | 'Name' | 'Role' | 'Manual';
     selector?: string;
     value?: string;
     url?: string;
     timestamp: number;
+    rawCode?: string;
 }
 
 export class InteractiveRecorder {
@@ -84,6 +86,10 @@ export class InteractiveRecorder {
             };
         });
 
+        await page.exposeFunction('getScenarios', async () => {
+            return await getExistingScenarios();
+        });
+
         await page.exposeFunction('controlAction', (action: any) => {
             if (action.type === 'start') {
                 if (!this.isRecording) {
@@ -132,6 +138,21 @@ export class InteractiveRecorder {
                     timestamp: Date.now()
                 };
                 this.events.push(newEvent);
+                this.syncUiState();
+            } else if (action.type === 'addImportedEvents') {
+                const steps = action.payload;
+                for (const step of steps) {
+                    const stepNum = this.events.length + 1;
+                    const newEvent: RecordedEvent = {
+                        id: `${step.id}_${stepNum}`,
+                        type: 'imported',
+                        selectorType: 'Manual',
+                        selector: step.title,
+                        rawCode: step.rawCode,
+                        timestamp: Date.now()
+                    };
+                    this.events.push(newEvent);
+                }
                 this.syncUiState();
             } else if (action.type === 'reset') {
                 this.events = [];
@@ -346,6 +367,37 @@ export class InteractiveRecorder {
 
                         .collapsed #${uiId}-steps-wrapper { display: none; }
                         
+                        /* Modal Styles */
+                        .${uiId}-modal-select {
+                            width: 100%;
+                            padding: 8px;
+                            background: #111;
+                            border: 1px solid #444;
+                            color: white;
+                            border-radius: 4px;
+                            margin-bottom: 15px;
+                            font-size: 13px;
+                            outline: none;
+                        }
+                        .${uiId}-modal-select:focus { border-color: #2196F3; }
+                        
+                        .${uiId}-step-row {
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            font-size: 12px;
+                            cursor: pointer;
+                            padding: 6px 8px;
+                            border-radius: 4px;
+                            border: 1px solid transparent;
+                            transition: all 0.2s;
+                            margin-bottom: 4px;
+                        }
+                        .${uiId}-step-row:hover { background: #333; }
+                        .${uiId}-step-row.selected {
+                            background: rgba(33, 150, 243, 0.15);
+                            border-color: rgba(33, 150, 243, 0.4);
+                        }
                     </style>
                     <div id="${uiId}-container">
                         <div id="${uiId}-header">
@@ -371,10 +423,38 @@ export class InteractiveRecorder {
                         <div id="${uiId}-steps-wrapper">
                             <div id="${uiId}-steps-header-row">
                                 <span style="font-size: 12px; font-weight: 600; color: #aaa;">Captured Steps</span>
-                                <button id="${uiId}-btn-add" class="${uiId}-btn ${uiId}-btn-add">+ Add Step</button>
+                                <button id="${uiId}-btn-add" class="${uiId}-btn ${uiId}-btn-add">+ Add Steps</button>
                             </div>
                             <div id="${uiId}-steps-container">
                                 <!-- Steps injected here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal UI -->
+                    <div id="${uiId}-modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:2147483648; justify-content:center; align-items:center;">
+                        <div id="${uiId}-modal" style="background:#1e1e1e; color:#eee; width:500px; max-height:80vh; border-radius:8px; display:flex; flex-direction:column; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                            <div style="padding:15px; background:#2d2d2d; border-top-left-radius:8px; border-top-right-radius:8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444;">
+                                <h3 style="margin:0; font-size:16px;">Add Steps</h3>
+                                <button id="${uiId}-modal-close" class="${uiId}-btn-icon" style="font-size:16px;">✖</button>
+                            </div>
+                            <div id="${uiId}-modal-content" style="padding:15px; overflow-y:auto; flex:1; display:flex; flex-direction:column;">
+                                <div id="${uiId}-modal-loader" style="text-align:center; color:#888;">Loading scenarios...</div>
+                                <div id="${uiId}-modal-body" style="display:none; flex-direction:column; flex:1;">
+                                    <label style="font-size:12px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">Select Scenario:</label>
+                                    <select id="${uiId}-scenario-select" class="${uiId}-modal-select"></select>
+                                    
+                                    <div style="font-size:12px; font-weight:bold; color:#aaa; margin-bottom:8px; display:flex; justify-content:space-between;">
+                                        <span>Steps to Import:</span>
+                                    </div>
+                                    <div id="${uiId}-scenario-steps-container" style="background:#252525; border:1px solid #444; border-radius:4px; padding:10px; max-height:300px; overflow-y:auto;">
+                                        <!-- Steps rendered here based on dropdown -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="padding:15px; border-top:1px solid #444; display:flex; justify-content:flex-end; gap:10px;">
+                                <button id="${uiId}-btn-add-manual" class="${uiId}-btn ${uiId}-btn-add" style="background:#607D8B;">Manual Step</button>
+                                <button id="${uiId}-btn-append-selected" class="${uiId}-btn ${uiId}-btn-generate" disabled style="opacity:0.5; cursor:not-allowed;">Append Selected (0)</button>
                             </div>
                         </div>
                     </div>
@@ -456,8 +536,138 @@ export class InteractiveRecorder {
                     c.controlAction({ type: 'generate' });
                 });
 
-                document.getElementById(`${uiId}-btn-add`)?.addEventListener('click', () => {
+                document.getElementById(`${uiId}-btn-add`)?.addEventListener('click', async () => {
+                    const overlay = document.getElementById(`${uiId}-modal-overlay`);
+                    if (overlay) overlay.style.display = 'flex';
+
+                    const loader = document.getElementById(`${uiId}-modal-loader`);
+                    const body = document.getElementById(`${uiId}-modal-body`);
+                    const select = document.getElementById(`${uiId}-scenario-select`) as HTMLSelectElement;
+                    const stepsContainer = document.getElementById(`${uiId}-scenario-steps-container`);
+                    const appendBtn = document.getElementById(`${uiId}-btn-append-selected`) as HTMLButtonElement;
+
+                    if (!loader || !body || !select || !stepsContainer || !appendBtn) return;
+
+                    loader.style.display = 'block';
+                    body.style.display = 'none';
+                    select.innerHTML = '';
+                    stepsContainer.innerHTML = '';
+
+                    // Reset selection state tracker
+                    (window as any).__antigravitySelectedSteps = new Set<string>();
+
+                    const updateAppendButton = () => {
+                        const count = (window as any).__antigravitySelectedSteps.size;
+                        if (count > 0) {
+                            appendBtn.disabled = false;
+                            appendBtn.style.opacity = '1';
+                            appendBtn.style.cursor = 'pointer';
+                            appendBtn.innerHTML = `Append Selected (${count})`;
+                        } else {
+                            appendBtn.disabled = true;
+                            appendBtn.style.opacity = '0.5';
+                            appendBtn.style.cursor = 'not-allowed';
+                            appendBtn.innerHTML = `Append Selected (0)`;
+                        }
+                    };
+                    updateAppendButton();
+
+                    try {
+                        const scenarios = await c.getScenarios();
+                        if (!scenarios || scenarios.length === 0) {
+                            loader.innerHTML = 'No existing scenarios found.';
+                            return;
+                        }
+
+                        loader.style.display = 'none';
+                        body.style.display = 'flex';
+                        (window as any).__antigravityScenarios = scenarios;
+
+                        // Populate dropdown
+                        let selectHtml = '<option value="" disabled selected>-- Select a Scenario --</option>';
+                        scenarios.forEach((scen: any, index: number) => {
+                            selectHtml += `<option value="${index}">${scen.name} (${scen.file})</option>`;
+                        });
+                        select.innerHTML = selectHtml;
+
+                        // Handle scenario selection
+                        select.onchange = () => {
+                            const selectedIndex = parseInt(select.value, 10);
+                            if (isNaN(selectedIndex)) return;
+
+                            const scen = scenarios[selectedIndex];
+                            let stepsHtml = '';
+
+                            if (!scen.steps || scen.steps.length === 0) {
+                                stepsHtml = '<div style="color:#888; font-size:12px; text-align:center;">No steps in this scenario.</div>';
+                            } else {
+                                scen.steps.forEach((step: any) => {
+                                    const safeTitle = step.title.replace(/"/g, '&quot;');
+                                    const isSelected = (window as any).__antigravitySelectedSteps.has(step.id);
+
+                                    stepsHtml += `
+                                    <label class="${uiId}-step-row ${isSelected ? 'selected' : ''}">
+                                        <input type="checkbox" class="${uiId}-step-checkbox" value="${step.id}" ${isSelected ? 'checked' : ''} />
+                                        <span>${safeTitle}</span>
+                                    </label>`;
+                                });
+                            }
+
+                            stepsContainer.innerHTML = stepsHtml;
+
+                            // Attach listeners to newly rendered checkboxes
+                            stepsContainer.querySelectorAll(`.${uiId}-step-checkbox`).forEach((cb: Element) => {
+                                const checkbox = cb as HTMLInputElement;
+                                checkbox.addEventListener('change', (e) => {
+                                    const target = e.target as HTMLInputElement;
+                                    const label = target.closest('label');
+                                    if (target.checked) {
+                                        (window as any).__antigravitySelectedSteps.add(target.value);
+                                        label?.classList.add('selected');
+                                    } else {
+                                        (window as any).__antigravitySelectedSteps.delete(target.value);
+                                        label?.classList.remove('selected');
+                                    }
+                                    updateAppendButton();
+                                });
+                            });
+                        };
+                    } catch (err) {
+                        loader.innerHTML = `<div style="color:red;">Error loading scenarios</div>`;
+                    }
+                });
+
+                document.getElementById(`${uiId}-modal-close`)?.addEventListener('click', () => {
+                    const overlay = document.getElementById(`${uiId}-modal-overlay`);
+                    if (overlay) overlay.style.display = 'none';
+                });
+
+                document.getElementById(`${uiId}-btn-add-manual`)?.addEventListener('click', () => {
+                    const overlay = document.getElementById(`${uiId}-modal-overlay`);
+                    if (overlay) overlay.style.display = 'none';
                     c.controlAction({ type: 'addManualEvent', payload: {} });
+                });
+
+                document.getElementById(`${uiId}-btn-append-selected`)?.addEventListener('click', () => {
+                    const selectedIdsSet = (window as any).__antigravitySelectedSteps || new Set();
+                    if (selectedIdsSet.size === 0) return;
+
+                    const selectedIds = Array.from(selectedIdsSet);
+                    const scenarios = (window as any).__antigravityScenarios || [];
+                    const stepsToAdd: any[] = [];
+
+                    scenarios.forEach((scen: any) => {
+                        scen.steps.forEach((step: any) => {
+                            if (selectedIds.includes(step.id)) {
+                                stepsToAdd.push(step);
+                            }
+                        });
+                    });
+
+                    c.controlAction({ type: 'addImportedEvents', payload: stepsToAdd });
+
+                    const overlay = document.getElementById(`${uiId}-modal-overlay`);
+                    if (overlay) overlay.style.display = 'none';
                 });
 
                 document.getElementById(`${uiId}-btn-reset`)?.addEventListener('click', () => {
@@ -535,6 +745,10 @@ export class InteractiveRecorder {
                     if (ev.type === 'assert') bgCol = '#9C27B0'; // Purple
                     if (ev.type === 'drag-select') bgCol = '#9C27B0';
                     if (ev.type === 'manual') bgCol = '#607D8B';
+                    if (ev.type === 'imported') {
+                        bgCol = '#9E9E9E'; // Gray
+                        typeDisplay = 'Imported';
+                    }
 
                     stepEl.innerHTML = `
                         <div class="${uiId}-step-header">
@@ -550,7 +764,12 @@ export class InteractiveRecorder {
                     `;
 
                     // Generate editable inputs based on type
-                    if (ev.type === 'navigation' || ev.type === 'url-change') {
+                    if (ev.type === 'imported') {
+                        stepEl.innerHTML += `<div style="display:flex; align-items:center; gap:4px; margin-bottom: 4px; padding: 6px; background: #222; border-radius: 4px; border: 1px dashed #555;">
+                            <span style="font-size:11px; color:#bbb; flex: 1;">${ev.selector}</span>
+                            <span style="font-size:10px; color:#888;">(Read-only)</span>
+                        </div>`;
+                    } else if (ev.type === 'navigation' || ev.type === 'url-change') {
                         stepEl.innerHTML += `<div style="display:flex; align-items:center; gap:4px; margin-bottom: 4px;">
                             <span style="font-size:10px; color:#888; width: 60px;">URL</span>
                             <input class="${uiId}-step-input step-url" data-id="${ev.id}" value="${ev.url || ''}" />
