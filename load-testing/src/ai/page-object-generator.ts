@@ -88,7 +88,8 @@ ${methodBody}
         const words = cleanName.split(/\s+/).filter(w => w.length > 0);
         const className = words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('') + 'Page';
 
-        const fileName = `${className.toLowerCase()}.ts`;
+        const fileBaseName = words.map(w => w.toLowerCase()).join('_') + '_page';
+        const fileName = `${fileBaseName}.ts`;
         const pagesDir = path.join(process.cwd(), 'src', 'pages');
         const filePath = path.join(pagesDir, fileName);
 
@@ -183,7 +184,7 @@ ${newMethodsCode}
         return {
             className,
             methods: generatedMethods,
-            importPath: `../pages/${className.toLowerCase()}`
+            importPath: `../pages/${fileBaseName}`
         };
     }
 }
