@@ -25,6 +25,15 @@ export class Config {
         return process.env.DATA_ID_VALUE_PATH || path.join(process.cwd(), 'data', 'locators.json');
     }
 
+    static get Timeout(): number {
+        return parseInt(process.env.TIMEOUT || '15000', 10);
+    }
+
+    static get Workers(): number | undefined {
+        const workers = parseInt(process.env.WORKERS || '', 10);
+        return isNaN(workers) ? undefined : workers;
+    }
+
     // Command line args can override env vars if needed, 
     // but for now we follow the .NET pattern of using Env vars primarily.
 }

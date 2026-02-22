@@ -134,6 +134,9 @@ ${methodBody}
             // But let's do a best-effort injection.
 
             let updatedContent = existingContent;
+            if (!updatedContent.includes('import { Config }')) {
+                updatedContent = `import { Config } from '../core/config';\n` + updatedContent;
+            }
 
             if (allNewProperties.length > 0) {
                 // Inject declarations right after class declaration
@@ -166,6 +169,7 @@ ${methodBody}
 
             const newClassContent = `import { Page, expect, test } from '@playwright/test';
 import { LocatorMap } from '../core/locator-map';
+import { Config } from '../core/config';
 
 export class ${className} {
     readonly page: Page;

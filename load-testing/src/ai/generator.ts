@@ -39,7 +39,7 @@ export class GeneratorAgent {
 
         let stepCount = 1;
 
-        let specImports = `import { test, expect } from '@playwright/test';\nimport { LocatorMap } from '../core/locator-map';\n`;
+        let specImports = `import { test, expect } from '@playwright/test';\nimport { LocatorMap } from '../core/locator-map';\nimport { Config } from '../core/config';\n`;
         let specBody = "";
 
         let currentUrl = config.UrlPath;
@@ -58,7 +58,7 @@ export class GeneratorAgent {
             }
             importedStepsByScenario[featureName].push({
                 title: 'Initial Navigation',
-                rawCode: `        await page.goto('${initialUrl}');\n        await page.waitForLoadState('networkidle');`
+                rawCode: `        await page.goto('${initialUrl}');\n        await page.waitForLoadState('networkidle', { timeout: Config.Timeout }).catch(() => { console.log(\`Network not idle after \${Config.Timeout}ms, continuing anyway.\`); });`
             });
             specBody += `\n    // PLACEHOLDER: ${featureName} : Initial Navigation`;
         }
@@ -84,10 +84,10 @@ export class GeneratorAgent {
 
                 if (e.type === 'navigation') {
                     stepTitle = `Navigate to ${e.url}`;
-                    rawStepCode = `        await page.goto('${e.url}');\n        await page.waitForLoadState('networkidle');`;
+                    rawStepCode = `        await page.goto('${e.url}');\n        await page.waitForLoadState('networkidle', { timeout: Config.Timeout }).catch(() => { console.log(\`Network not idle after \${Config.Timeout}ms, continuing anyway.\`); });`;
                 } else {
                     stepTitle = `URL changed to ${e.url}`;
-                    rawStepCode = `        await expect(page).toHaveURL('${e.url}');\n        await page.waitForLoadState('networkidle');`;
+                    rawStepCode = `        await expect(page).toHaveURL('${e.url}');\n        await page.waitForLoadState('networkidle', { timeout: Config.Timeout }).catch(() => { console.log(\`Network not idle after \${Config.Timeout}ms, continuing anyway.\`); });`;
                 }
 
                 if (!importedStepsByScenario[featureName]) {
@@ -113,7 +113,7 @@ export class GeneratorAgent {
                 specBody += `
     await test.step('Manual Step: ${e.value}', async () => {
         const locator = page.locator('${selector}');
-        await expect(locator).toBeVisible({ timeout: 15000 });
+        await expect(locator).toBeVisible({ timeout: Config.Timeout });
         await locator.click(); // Defaulting manual step to click. User should edit this block.
     });`;
             } else if (e.type === 'imported') {
@@ -165,13 +165,13 @@ export class GeneratorAgent {
 
                 if (e.type === 'click') {
                     rawStepCode = `        const selector = LocatorMap.getPlaywrightSelector('${key}');
-        await expect(page.locator(selector).first()).toBeVisible({ timeout: 15000 });
+        await expect(page.locator(selector).first()).toBeVisible({ timeout: Config.Timeout });
         await page.locator(selector).first().click();`;
                 } else if (e.type === 'input') {
                     rawStepCode = `        const selector = LocatorMap.getPlaywrightSelector('${key}');
         const expectedValue = LocatorMap.getExpectedValue('${key}');
         const locator = page.locator(selector).first();
-        await expect(locator).toBeVisible({ timeout: 15000 });
+        await expect(locator).toBeVisible({ timeout: Config.Timeout });
         try {
             await locator.fill(expectedValue);
             await expect(locator).toHaveValue(expectedValue, { timeout: 5000 });
@@ -182,7 +182,7 @@ export class GeneratorAgent {
                 } else if (e.type === 'drag-select') {
                     rawStepCode = `        const selector = LocatorMap.getPlaywrightSelector('${key}');
         const locator = page.locator(selector).first();
-        await expect(locator).toBeVisible({ timeout: 15000 });
+        await expect(locator).toBeVisible({ timeout: Config.Timeout });
         await locator.dblclick();`;
                 } else if (e.type === 'drag-drop') {
                     // Angular CDK and complex frameworks need very deliberate mouse steps to recognize drag.
@@ -193,7 +193,7 @@ export class GeneratorAgent {
         const sourceLocator = page.locator(sourceSelector).first();
         const targetLocator = page.locator(targetSelector).first();
         
-        await expect(sourceLocator).toBeVisible({ timeout: 15000 });
+        await expect(sourceLocator).toBeVisible({ timeout: Config.Timeout });
         
         // Robust Drag and Drop for Angular CDK
         await sourceLocator.hover();
@@ -206,7 +206,7 @@ export class GeneratorAgent {
         await page.waitForTimeout(200);
         
         // Target element might only appear after drag starts (like a placeholder)
-        await expect(targetLocator).toBeVisible({ timeout: 15000 });
+        await expect(targetLocator).toBeVisible({ timeout: Config.Timeout });
         
         // Move to Target
         await targetLocator.hover();
@@ -218,7 +218,7 @@ export class GeneratorAgent {
                     rawStepCode = `        const selector = LocatorMap.getPlaywrightSelector('${key}');
         const expectedValue = LocatorMap.getExpectedValue('${key}');
         const locator = page.locator(selector).first();
-        await expect(locator).toBeVisible({ timeout: 15000 });
+        await expect(locator).toBeVisible({ timeout: Config.Timeout });
         await expect(locator).${assertMethod}(expectedValue, { timeout: 10000 });`;
                 }
 

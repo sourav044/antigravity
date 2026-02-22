@@ -6,16 +6,5 @@
       "//button[text()='Login']",
       ".auth-login"
     ]
-  },
-  "newfeature_drag-drop_1": {
-    "primary": ".cdk-drag.example-box.cdk-drag-dragging ",
-    "value": "#reordering-lists "
-  },
-  "newfeature_step_1": {
-    "primary": "cdk-drag-drop-overview-example > div"
-  },
-  "newfeature_drag-drop_3": {
-    "primary": ".cdk-drag.example-box.ng-star-inserted.cdk-drag-dragging ",
-    "value": ".cdk-drag.example-box.ng-star-inserted.cdk-drag-placeholder "
   }
 }
